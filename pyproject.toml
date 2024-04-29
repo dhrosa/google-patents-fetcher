@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling", "hatch-fancy-pypi-readme"]
+build-backend = "hatchling.build"
+
+[project]
+name = "patent_fetcher"
+version = "0.0.0"
+
+dependencies = [
+    "selenium",
+    "beautifulsoup4",
+]
+
+[project.scripts]
+patent_fetcher = "patent_fetcher:main"
+
+[tool.hatch.envs.style]
+dependencies = ["isort", "black", "pylama", "mypy"]
+
+[tool.hatch.envs.style.scripts]
+format = [
+       "isort --color .",
+       "black .",
+]
+
+check = [
+      "pylama --ignore E203 .", # E203 is not pep8-compliant, and black breaks it
+      "mypy --strict --pretty .",
+] 
+all = [
+    "format",
+    "check",
+]
