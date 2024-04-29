@@ -9,6 +9,7 @@ version = "0.0.0"
 dependencies = [
     "selenium",
     "beautifulsoup4",
+    "rich",
 ]
 
 [project.scripts]
