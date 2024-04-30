@@ -98,6 +98,10 @@ def parse_body(root: Tag) -> FieldIterator:
     yield "authority", dict(parse_properties(find_dt_tag(body, "Authority")))
     yield parse_simple_field(body, "Prior art keywords")
     yield parse_prior_art_date(body)
+    yield parse_simple_field(body, "Application number")
+    yield parse_simple_field(body, "Inventor")
+    yield parse_simple_field(body, "Current Assignee", "assigneeCurrent")
+    yield parse_simple_field(body, "Original Assignee", "assigneeOriginal")
 
 
 def to_snake_case(name: str) -> str:
@@ -131,6 +135,9 @@ def parse_properties(tag: Tag) -> FieldIterator:
                 continue
             content = string
 
+        assert isinstance(content, str)
+        content = content.strip()
+
         if "repeat" in sibling.attrs:
             repeated_properties[property_name].append(content)
         else:
@@ -150,7 +157,7 @@ def find_single_property(tag: Tag, target: str) -> Any:
         raise e
 
 
-def parse_simple_field(root: Tag, contents: str) -> Field:
+def parse_simple_field(root: Tag, contents: str, property_name: str = "") -> Field:
     dt = find_dt_tag(root, contents)
     name_parts = contents.split()
     field_name = ""
@@ -160,7 +167,7 @@ def parse_simple_field(root: Tag, contents: str) -> Field:
         else:
             field_name += part.capitalize()
 
-    return field_name, find_single_property(dt, field_name)
+    return field_name, find_single_property(dt, property_name or field_name)
 
 
 def parse_publication_number(body: Tag) -> FieldIterator:
