@@ -2,6 +2,7 @@ import json
 import logging
 import re
 from argparse import ArgumentParser
+from collections import defaultdict
 from collections.abc import Iterator
 from typing import Any, cast
 
@@ -100,15 +101,15 @@ def to_snake_case(name: str) -> str:
 
 def parse_properties(tag: Tag) -> Iterator[tuple[str, Any]]:
     """Generically parse a set of properties associated with a <dt> tag."""
+    repeated_properties = defaultdict[str, list[Any]](list)
     for sibling in tag.next_siblings:
         if not isinstance(sibling, Tag):
             continue
         property_name = sibling.get("itemprop")
         if not property_name:
             continue
-        if "repeat" in sibling.attrs:
-            logger.debug(f"Skipping repeating itemprop tag: {sibling}")
-            continue
+        assert isinstance(property_name, str)
+
         content = sibling.get("content")
         if not content:
             string = sibling.string
@@ -117,7 +118,12 @@ def parse_properties(tag: Tag) -> Iterator[tuple[str, Any]]:
                 continue
             content = string
 
-        yield cast(str, property_name), content
+        if "repeat" in sibling.attrs:
+            repeated_properties[property_name].append(content)
+        else:
+            yield property_name, content
+
+    yield from repeated_properties.items()
 
 
 def parse_publication_number(body: Tag) -> Iterator[tuple[str, Any]]:
