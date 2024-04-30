@@ -91,12 +91,18 @@ def parse_body(root: Tag) -> Iterator[tuple[str, Any]]:
     body = root.body
     assert body
 
-    yield "publication_number", dict(parse_publication_number(body))
+    yield "publicationNumber", dict(parse_publication_number(body))
     yield "authority", dict(parse_authority(body))
 
 
 def to_snake_case(name: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+
+
+def find_dt_tag(root: Tag, contents: str) -> Tag:
+    dt = root.find("dt", string=re.compile(contents))
+    assert isinstance(dt, Tag)
+    return dt
 
 
 def parse_properties(tag: Tag) -> Iterator[tuple[str, Any]]:
@@ -127,9 +133,7 @@ def parse_properties(tag: Tag) -> Iterator[tuple[str, Any]]:
 
 
 def parse_publication_number(body: Tag) -> Iterator[tuple[str, Any]]:
-    publication_number = body.find("dt", string=re.compile("Publication number"))
-    assert publication_number
-    assert isinstance(publication_number, Tag)
+    publication_number = find_dt_tag(body, "Publication number")
 
     yield from parse_properties(publication_number)
 
@@ -143,10 +147,7 @@ def parse_publication_number(body: Tag) -> Iterator[tuple[str, Any]]:
 
 
 def parse_authority(body: Tag) -> Iterator[tuple[str, Any]]:
-    authority = body.find("dt", string=re.compile("Authority"))
-    assert authority
-    assert isinstance(authority, Tag)
-
+    authority = find_dt_tag(body, "Authority")
     yield from parse_properties(authority)
 
 
