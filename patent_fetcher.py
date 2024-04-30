@@ -1,6 +1,7 @@
 import json
 import logging
-import re
+
+# import re
 from argparse import ArgumentParser
 from collections.abc import Iterator
 from typing import Any, TypeAlias, cast
@@ -54,7 +55,11 @@ def parse(html: str) -> dict[str, Any]:
 
     data = dict[str, Any]()
     # data.update(parse_head(root))
-    data.update(parse_body(root))
+
+    # data.update(parse_body(root))
+    article = root.find("article")
+    assert isinstance(article, Tag)
+    parse_tag(article, data)
     return data
 
 
@@ -92,30 +97,33 @@ def parse_head(root: Tag) -> FieldIterator:
 Node: TypeAlias = dict[str, Any]
 
 
-def parse_body(root: Tag) -> FieldIterator:
-    body = root.body
-    assert body
+# def parse_body(root: Tag) -> FieldIterator:
+#     article = root.find("article")
+#     assert article
+#     parse_tag(article)
 
-    # yield "publicationNumber", dict(parse_publication_number(body))
-    for dt in body.find_all("dt"):
-        assert isinstance(dt, Tag)
-        yield parse_dt_tag(dt)
-
-
-def parse_dt_tag(dt: Tag) -> Field:
-    node: Node = {}
-    for sibling in dt.find_next_siblings():
-        assert isinstance(sibling, Tag)
-        if sibling.name in ("dt", "h2"):
-            break
-        parse_property_tree(sibling, node)
-
-    return parse_dt_label(dt), node
+# yield "publicationNumber", dict(parse_publication_number(body))
+# for dt in body.find_all("dt"):
+#     assert isinstance(dt, Tag)
+#     yield parse_dt_tag(dt)
 
 
-def parse_dt_label(dt: Tag) -> str:
-    raw = dt.string
-    assert isinstance(raw, str)
+# def parse_dt_tag(dt: Tag) -> Field:
+#     node: Node = {}
+#     for sibling in dt.find_next_siblings():
+#         assert isinstance(sibling, Tag)
+#         if sibling.name in ("dt", "h2"):
+#             break
+#         parse_tag(sibling, node)
+
+#     return parse_label(dt), node
+
+
+def parse_label(tag: Tag) -> str:
+    raw = tag.string
+    if not isinstance(raw, str):
+        logger.warning("Label tag has no string")
+        return ""
     raw = raw.strip()
 
     parts = list[str]()
@@ -129,31 +137,53 @@ def parse_dt_label(dt: Tag) -> str:
     return "".join(parts)
 
 
-def find_dt_tag(root: Tag, contents: str) -> Tag:
-    dt = root.find("dt", string=re.compile(contents))
-    assert isinstance(dt, Tag)
-    return dt
+START_TAGS = ("dt", "h2")
 
 
-def parse_property_tree(tag: Tag, current_node: Node) -> None:  # noqa: C901
-    name = tag.get("itemprop")
-    if not name:
-        # This tag itself is not a property, but its descendants might be
-        for child in tag.children:
-            if not isinstance(child, Tag):
-                continue
-            parse_property_tree(child, current_node)
+def parse_children(tag: Tag, current_node: Node) -> None:
+    for child in tag.children:
+        if not isinstance(child, Tag):
+            continue
+        parse_tag(child, current_node)
+
+
+def parse_siblings(tag: Tag, current_node: Node) -> None:
+    for sibling in tag.next_siblings:
+        if not isinstance(sibling, Tag):
+            continue
+        parse_tag(sibling, current_node)
+
+
+hack = set[int]()
+
+
+def parse_tag(tag: Tag, current_node: Node) -> None:  # noqa: C901
+    if id(tag) in hack:
         return
-    assert isinstance(name, str)
+    hack.add(id(tag))
+    logger.debug(f"{tag.name=} {tag.attrs=} {tag.sourceline=}")
+    child_node: Node
+    if tag.name in START_TAGS:
+        label = parse_label(tag)
+        logger.debug(f"starting new property: {label}")
+        child_node = {}
+        parse_siblings(tag, child_node)
+        current_node[label] = child_node
+        logger.debug(f"ending new property: {label}")
+        return
+
+    property_name = tag.get("itemprop")
+    if not property_name:
+        # This tag itself is not a property, but its descendants might be
+        parse_children(tag, current_node)
+        return
+    assert isinstance(property_name, str)
 
     value: Any
 
     if tag.has_attr("itemscope"):
-        child_node: Node = {}
-        for child in tag.children:
-            if not isinstance(child, Tag):
-                continue
-            parse_property_tree(child, child_node)
+        child_node = {}
+        parse_children(tag, child_node)
         value = child_node
     elif content := tag.get("content"):
         assert isinstance(content, str)
@@ -166,11 +196,15 @@ def parse_property_tree(tag: Tag, current_node: Node) -> None:  # noqa: C901
         value = text.strip()
 
     if tag.has_attr("repeat"):
-        if name not in current_node:
-            current_node[name] = []
-        current_node[name].append(value)
+        if property_name not in current_node:
+            current_node[property_name] = []
+        try:
+            current_node[property_name].append(value)
+        except Exception as e:
+            logger.warning(f"{current_node=} {property_name=}")
+            raise e
     else:
-        current_node[name] = value
+        current_node[property_name] = value
 
 
 # def parse_publication_number(body: Tag) -> FieldIterator:
@@ -187,13 +221,15 @@ def parse_property_tree(tag: Tag, current_node: Node) -> None:  # noqa: C901
 
 def main() -> None:
     log_handler = RichHandler(rich_tracebacks=True)
-    log_handler.addFilter(logging.Filter(__name__))
+    file_handler = logging.FileHandler("log.txt", mode="w")
     logging.basicConfig(
         level="NOTSET",
         format="%(message)s",
         datefmt="[%X]",
-        handlers=[log_handler],
+        handlers=[log_handler, file_handler],
     )
+    for handler in logging.getLogger().handlers:
+        handler.addFilter(logging.Filter(__name__))
 
     parser = ArgumentParser(
         description="Fetch JSON-encoded information about a patent."
