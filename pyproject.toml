@@ -16,7 +16,7 @@ dependencies = [
 patent_fetcher = "patent_fetcher:main"
 
 [tool.hatch.envs.style]
-dependencies = ["isort", "black", "pylama", "mypy"]
+dependencies = ["isort", "black", "pylama", "mypy", "types-beautifulsoup4"]
 
 [tool.hatch.envs.style.scripts]
 format = [
