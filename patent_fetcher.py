@@ -2,7 +2,6 @@ import json
 import logging
 import re
 from argparse import ArgumentParser
-from collections import defaultdict
 from collections.abc import Iterator
 from typing import Any, TypeAlias, cast
 
@@ -90,22 +89,45 @@ def parse_head(root: Tag) -> FieldIterator:
     yield "contributors", contributors
 
 
+Node: TypeAlias = dict[str, Any]
+
+
 def parse_body(root: Tag) -> FieldIterator:
     body = root.body
     assert body
 
-    yield "publicationNumber", dict(parse_publication_number(body))
-    yield "authority", dict(parse_properties(find_dt_tag(body, "Authority")))
-    yield parse_simple_field(body, "Prior art keywords")
-    yield parse_prior_art_date(body)
-    yield parse_simple_field(body, "Application number")
-    yield parse_simple_field(body, "Inventor")
-    yield parse_simple_field(body, "Current Assignee", "assigneeCurrent")
-    yield parse_simple_field(body, "Original Assignee", "assigneeOriginal")
+    # yield "publicationNumber", dict(parse_publication_number(body))
+    yield "", []
+    for dt in body.find_all("dt"):
+        assert isinstance(dt, Tag)
+        yield parse_dt_tag(dt)
 
 
-def to_snake_case(name: str) -> str:
-    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+def parse_dt_tag(dt: Tag) -> Field:
+    node: Node = {}
+    for sibling in dt.find_next_siblings():
+        assert isinstance(sibling, Tag)
+        if sibling.name == "dt":
+            break
+        parse_property_tree(sibling, node)
+
+    return parse_dt_label(dt), node
+
+
+def parse_dt_label(dt: Tag) -> str:
+    raw = dt.string
+    assert isinstance(raw, str)
+    raw = raw.strip()
+
+    parts = list[str]()
+    for i, part in enumerate(raw.split()):
+        if not part[0].isalnum():
+            break
+        if i == 0:
+            parts.append(part.lower())
+        else:
+            parts.append(part.capitalize())
+    return "".join(parts)
 
 
 def find_dt_tag(root: Tag, contents: str) -> Tag:
@@ -114,83 +136,48 @@ def find_dt_tag(root: Tag, contents: str) -> Tag:
     return dt
 
 
-def parse_properties(tag: Tag) -> FieldIterator:
-    """Generically parse a set of properties associated with a <dt> tag."""
-    repeated_properties = defaultdict[str, list[Any]](list)
-    for sibling in tag.next_siblings:
-        if not isinstance(sibling, Tag):
-            continue
-        if sibling.name == "dt":
-            break
-        property_name = sibling.get("itemprop")
-        if not property_name:
-            continue
-        assert isinstance(property_name, str)
-
-        content = sibling.get("content")
-        if not content:
-            string = sibling.string
-            if string is None:
-                logger.debug(f"Skipping nested itemprop tag: {sibling}")
+def parse_property_tree(tag: Tag, current_node: Node) -> None:
+    name = tag.get("itemprop")
+    if not name:
+        # This tag itself is not a property, but its descendants might be
+        for child in tag.children:
+            if not isinstance(child, Tag):
                 continue
-            content = string
+            parse_property_tree(child, current_node)
+        return
+    assert isinstance(name, str)
 
+    if tag.has_attr("itemscope"):
+        logging.debug(f"Skipping nested tag: {tag.name}")
+        return
+
+    value: str
+    if content := tag.get("content"):
         assert isinstance(content, str)
-        content = content.strip()
+        value = content
+    else:
+        text = tag.string
+        assert isinstance(text, str)
+        value = text.strip()
 
-        if "repeat" in sibling.attrs:
-            repeated_properties[property_name].append(content)
-        else:
-            yield property_name, content
-
-    yield from repeated_properties.items()
-
-
-def find_single_property(tag: Tag, target: str) -> Any:
-    properties = dict(parse_properties(tag))
-    if len(keys := properties.keys()) > 1:
-        logger.warning(f"Found multiple properties while parsing simple dt tag: {keys}")
-    try:
-        return properties[target]
-    except KeyError as e:
-        e.add_note(f"{tag=}")
-        raise e
+    if tag.has_attr("repeat"):
+        if name not in current_node:
+            current_node[name] = []
+        current_node[name].append(value)
+    else:
+        current_node[name] = value
 
 
-def parse_simple_field(root: Tag, contents: str, property_name: str = "") -> Field:
-    dt = find_dt_tag(root, contents)
-    name_parts = contents.split()
-    field_name = ""
-    for i, part in enumerate(name_parts):
-        if i == 0:
-            field_name += part.lower()
-        else:
-            field_name += part.capitalize()
+# def parse_publication_number(body: Tag) -> FieldIterator:
+#     publication_number = find_dt_tag(body, "Publication number")
 
-    return field_name, find_single_property(dt, property_name or field_name)
-
-
-def parse_publication_number(body: Tag) -> FieldIterator:
-    publication_number = find_dt_tag(body, "Publication number")
-
-    yield from parse_properties(publication_number)
-
-    # Parse all of the publication number values
-    values = list[str]()
-    for span in publication_number.find_next_siblings("span"):
-        assert isinstance(span, Tag)
-        if value := cast(str, span.string).strip():
-            values.append(value)
-    yield "values", values
-
-
-def parse_prior_art_date(body: Tag) -> Field:
-    dt = find_dt_tag(body, "Prior art date")
-    dd = dt.find_next_sibling("dd")
-    assert isinstance(dd, Tag)
-    time = dd.time
-    assert time
-    return "priorArtDate", time.string
+#     # Parse all of the publication number values
+#     values = list[str]()
+#     for span in publication_number.find_next_siblings("span"):
+#         assert isinstance(span, Tag)
+#         if value := cast(str, span.string).strip():
+#             values.append(value)
+#     yield "values", values
 
 
 def main() -> None:
