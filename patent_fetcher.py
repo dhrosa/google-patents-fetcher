@@ -111,6 +111,8 @@ def parse_properties(tag: Tag) -> Iterator[tuple[str, Any]]:
     for sibling in tag.next_siblings:
         if not isinstance(sibling, Tag):
             continue
+        if sibling.name == "dt":
+            break
         property_name = sibling.get("itemprop")
         if not property_name:
             continue
