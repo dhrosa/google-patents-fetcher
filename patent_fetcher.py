@@ -53,70 +53,15 @@ def parse(html: str) -> dict[str, Any]:
     root = soup.html
     assert root
 
-    data = dict[str, Any]()
-    # data.update(parse_head(root))
-
-    # data.update(parse_body(root))
     article = root.find("article")
     assert isinstance(article, Tag)
+
+    data = dict[str, Any]()
     parse_tag(article, data)
     return data
 
 
-def parse_head(root: Tag) -> FieldIterator:
-    head = root.head
-    assert head
-
-    def meta_tag(name: str) -> Tag:
-        return cast(Tag, head.find("meta", attrs={"name": name}))
-
-    def meta_content(name: str) -> str:
-        return cast(str, meta_tag(name)["content"])
-
-    # These fields can just be copied over in a straightforward way without extra processing.
-    for name in (
-        "DC.title",
-        "DC.description",
-        "citation_patent_application_number",
-        "citation_pdf_url",
-        "citation_patent_publication_number",
-    ):
-        yield name.removeprefix("DC."), meta_content(name)
-
-    dates = list[dict[str, Any]]()
-    for meta in head.find_all("meta", attrs={"name": "DC.date"}):
-        dates.append(dict(value=meta.get("content"), type=meta.get("scheme")))
-    yield "dates", dates
-
-    contributors = list[dict[str, Any]]()
-    for meta in head.find_all("meta", attrs={"name": "DC.contributor"}):
-        contributors.append(dict(value=meta.get("content"), type=meta.get("scheme")))
-    yield "contributors", contributors
-
-
 Node: TypeAlias = dict[str, Any]
-
-
-# def parse_body(root: Tag) -> FieldIterator:
-#     article = root.find("article")
-#     assert article
-#     parse_tag(article)
-
-# yield "publicationNumber", dict(parse_publication_number(body))
-# for dt in body.find_all("dt"):
-#     assert isinstance(dt, Tag)
-#     yield parse_dt_tag(dt)
-
-
-# def parse_dt_tag(dt: Tag) -> Field:
-#     node: Node = {}
-#     for sibling in dt.find_next_siblings():
-#         assert isinstance(sibling, Tag)
-#         if sibling.name in ("dt", "h2"):
-#             break
-#         parse_tag(sibling, node)
-
-#     return parse_label(dt), node
 
 
 def parse_label(tag: Tag) -> str:
