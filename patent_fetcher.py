@@ -96,9 +96,7 @@ def parse_body(root: Tag) -> FieldIterator:
 
     yield "publicationNumber", dict(parse_publication_number(body))
     yield "authority", dict(parse_properties(find_dt_tag(body, "Authority")))
-    yield "priorArtKeywords", find_single_property(
-        find_dt_tag(body, "Prior art keywords"), "priorArtKeywords"
-    )
+    yield parse_simple_field(body, "Prior art keywords")
     yield parse_prior_art_date(body)
 
 
@@ -150,6 +148,19 @@ def find_single_property(tag: Tag, target: str) -> Any:
     except KeyError as e:
         e.add_note(f"{tag=}")
         raise e
+
+
+def parse_simple_field(root: Tag, contents: str) -> Field:
+    dt = find_dt_tag(root, contents)
+    name_parts = contents.split()
+    field_name = ""
+    for i, part in enumerate(name_parts):
+        if i == 0:
+            field_name += part.lower()
+        else:
+            field_name += part.capitalize()
+
+    return field_name, find_single_property(dt, field_name)
 
 
 def parse_publication_number(body: Tag) -> FieldIterator:
