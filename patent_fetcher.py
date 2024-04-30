@@ -4,7 +4,7 @@ import re
 from argparse import ArgumentParser
 from collections import defaultdict
 from collections.abc import Iterator
-from typing import Any, cast
+from typing import Any, TypeAlias, cast
 
 from bs4 import BeautifulSoup, Tag
 from rich import print
@@ -13,6 +13,9 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
 logger = logging.getLogger(__name__)
+
+Field: TypeAlias = tuple[str, Any]
+FieldIterator: TypeAlias = Iterator[Field]
 
 
 def fetch_html(url: str) -> str:
@@ -56,7 +59,7 @@ def parse(html: str) -> dict[str, Any]:
     return data
 
 
-def parse_head(root: Tag) -> Iterator[tuple[str, Any]]:
+def parse_head(root: Tag) -> FieldIterator:
     head = root.head
     assert head
 
@@ -87,7 +90,7 @@ def parse_head(root: Tag) -> Iterator[tuple[str, Any]]:
     yield "contributors", contributors
 
 
-def parse_body(root: Tag) -> Iterator[tuple[str, Any]]:
+def parse_body(root: Tag) -> FieldIterator:
     body = root.body
     assert body
 
@@ -109,7 +112,7 @@ def find_dt_tag(root: Tag, contents: str) -> Tag:
     return dt
 
 
-def parse_properties(tag: Tag) -> Iterator[tuple[str, Any]]:
+def parse_properties(tag: Tag) -> FieldIterator:
     """Generically parse a set of properties associated with a <dt> tag."""
     repeated_properties = defaultdict[str, list[Any]](list)
     for sibling in tag.next_siblings:
@@ -149,7 +152,7 @@ def find_single_property(tag: Tag, target: str) -> Any:
         raise e
 
 
-def parse_publication_number(body: Tag) -> Iterator[tuple[str, Any]]:
+def parse_publication_number(body: Tag) -> FieldIterator:
     publication_number = find_dt_tag(body, "Publication number")
 
     yield from parse_properties(publication_number)
@@ -163,7 +166,7 @@ def parse_publication_number(body: Tag) -> Iterator[tuple[str, Any]]:
     yield "values", values
 
 
-def parse_prior_art_date(body: Tag) -> tuple[str, Any]:
+def parse_prior_art_date(body: Tag) -> Field:
     dt = find_dt_tag(body, "Prior art date")
     dd = dt.find_next_sibling("dd")
     assert isinstance(dd, Tag)
