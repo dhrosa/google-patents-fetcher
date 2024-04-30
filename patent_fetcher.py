@@ -92,7 +92,11 @@ def parse_body(root: Tag) -> Iterator[tuple[str, Any]]:
     assert body
 
     yield "publicationNumber", dict(parse_publication_number(body))
-    yield "authority", dict(parse_authority(body))
+    yield "authority", dict(parse_properties(find_dt_tag(body, "Authority")))
+    yield "priorArtKeywords", find_single_property(
+        find_dt_tag(body, "Prior art keywords"), "priorArtKeywords"
+    )
+    yield parse_prior_art_date(body)
 
 
 def to_snake_case(name: str) -> str:
@@ -134,6 +138,17 @@ def parse_properties(tag: Tag) -> Iterator[tuple[str, Any]]:
     yield from repeated_properties.items()
 
 
+def find_single_property(tag: Tag, target: str) -> Any:
+    properties = dict(parse_properties(tag))
+    if len(keys := properties.keys()) > 1:
+        logger.warning(f"Found multiple properties while parsing simple dt tag: {keys}")
+    try:
+        return properties[target]
+    except KeyError as e:
+        e.add_note(f"{tag=}")
+        raise e
+
+
 def parse_publication_number(body: Tag) -> Iterator[tuple[str, Any]]:
     publication_number = find_dt_tag(body, "Publication number")
 
@@ -148,9 +163,13 @@ def parse_publication_number(body: Tag) -> Iterator[tuple[str, Any]]:
     yield "values", values
 
 
-def parse_authority(body: Tag) -> Iterator[tuple[str, Any]]:
-    authority = find_dt_tag(body, "Authority")
-    yield from parse_properties(authority)
+def parse_prior_art_date(body: Tag) -> tuple[str, Any]:
+    dt = find_dt_tag(body, "Prior art date")
+    dd = dt.find_next_sibling("dd")
+    assert isinstance(dd, Tag)
+    time = dd.time
+    assert time
+    return "priorArtDate", time.string
 
 
 def main() -> None:
