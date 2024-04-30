@@ -106,9 +106,7 @@ def parse_dt_tag(dt: Tag) -> Field:
     node: Node = {}
     for sibling in dt.find_next_siblings():
         assert isinstance(sibling, Tag)
-        if sibling.name == "dt":
-            break
-        if sibling.has_attr("itemscope"):
+        if sibling.name in ("dt", "h2"):
             break
         parse_property_tree(sibling, node)
 
@@ -155,8 +153,7 @@ def parse_property_tree(tag: Tag, current_node: Node) -> None:  # noqa: C901
         for child in tag.children:
             if not isinstance(child, Tag):
                 continue
-            parse_property_tree(child, current_node)
-        # TODO: This case isn't quite working yet?
+            parse_property_tree(child, child_node)
         value = child_node
     elif content := tag.get("content"):
         assert isinstance(content, str)
@@ -164,7 +161,7 @@ def parse_property_tree(tag: Tag, current_node: Node) -> None:  # noqa: C901
     else:
         text = tag.string
         if not isinstance(text, str):
-            logging.warning(f"Skipping tag with no .string: {tag=}")
+            logger.warning(f"Skipping tag with no .string: {tag=}")
             return
         value = text.strip()
 
@@ -189,11 +186,13 @@ def parse_property_tree(tag: Tag, current_node: Node) -> None:  # noqa: C901
 
 
 def main() -> None:
+    log_handler = RichHandler(rich_tracebacks=True)
+    log_handler.addFilter(logging.Filter(__name__))
     logging.basicConfig(
         level="NOTSET",
         format="%(message)s",
         datefmt="[%X]",
-        handlers=[RichHandler(rich_tracebacks=True)],
+        handlers=[log_handler],
     )
 
     parser = ArgumentParser(
