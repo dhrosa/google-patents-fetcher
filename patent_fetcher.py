@@ -6,8 +6,8 @@ from argparse import ArgumentParser
 from collections.abc import Iterator
 from typing import Any, TypeAlias, cast
 
+import rich
 from bs4 import BeautifulSoup, Tag
-from rich import print
 from rich.logging import RichHandler
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -222,6 +222,7 @@ def parse_tag(tag: Tag, current_node: Node) -> None:  # noqa: C901
 
 
 def main() -> None:
+    rich.reconfigure(stderr=True)
     log_handler = RichHandler(rich_tracebacks=True)
     file_handler = logging.FileHandler("log.txt", mode="w")
     logging.basicConfig(
@@ -256,11 +257,8 @@ def main() -> None:
         patent_id = args.id_or_url
         url = f"https://patents.google.com/patent/{patent_id}"
 
-    print(parse(fetch_html(url)))
-
-    # with err_console.pager(styles=True):
-    #     print
-    #     err_console.print(fetch_html(url))
+    parsed = parse(fetch_html(url))
+    print(json.dumps(parsed, indent=2))
 
 
 if __name__ == "__main__":
