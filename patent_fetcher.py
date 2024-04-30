@@ -53,7 +53,7 @@ def parse(html: str) -> dict[str, Any]:
     assert root
 
     data = dict[str, Any]()
-    data.update(parse_head(root))
+    # data.update(parse_head(root))
     data.update(parse_body(root))
     return data
 
@@ -97,7 +97,6 @@ def parse_body(root: Tag) -> FieldIterator:
     assert body
 
     # yield "publicationNumber", dict(parse_publication_number(body))
-    yield "", []
     for dt in body.find_all("dt"):
         assert isinstance(dt, Tag)
         yield parse_dt_tag(dt)
@@ -108,6 +107,8 @@ def parse_dt_tag(dt: Tag) -> Field:
     for sibling in dt.find_next_siblings():
         assert isinstance(sibling, Tag)
         if sibling.name == "dt":
+            break
+        if sibling.has_attr("itemscope"):
             break
         parse_property_tree(sibling, node)
 
@@ -136,7 +137,7 @@ def find_dt_tag(root: Tag, contents: str) -> Tag:
     return dt
 
 
-def parse_property_tree(tag: Tag, current_node: Node) -> None:
+def parse_property_tree(tag: Tag, current_node: Node) -> None:  # noqa: C901
     name = tag.get("itemprop")
     if not name:
         # This tag itself is not a property, but its descendants might be
@@ -147,17 +148,24 @@ def parse_property_tree(tag: Tag, current_node: Node) -> None:
         return
     assert isinstance(name, str)
 
-    if tag.has_attr("itemscope"):
-        logging.debug(f"Skipping nested tag: {tag.name}")
-        return
+    value: Any
 
-    value: str
-    if content := tag.get("content"):
+    if tag.has_attr("itemscope"):
+        child_node: Node = {}
+        for child in tag.children:
+            if not isinstance(child, Tag):
+                continue
+            parse_property_tree(child, current_node)
+        # TODO: This case isn't quite working yet?
+        value = child_node
+    elif content := tag.get("content"):
         assert isinstance(content, str)
         value = content
     else:
         text = tag.string
-        assert isinstance(text, str)
+        if not isinstance(text, str):
+            logging.warning(f"Skipping tag with no .string: {tag=}")
+            return
         value = text.strip()
 
     if tag.has_attr("repeat"):
