@@ -231,7 +231,7 @@ def parse_abstract(section: Tag) -> FieldIterator:
     assert isinstance(abstract, Tag)
 
     yield from attrs_to_fields(abstract)
-    yield "content", abstract.get_text(strip=True)
+    yield "text", abstract.get_text(strip=True)
 
 
 def parse_description(section: Tag) -> FieldIterator:
