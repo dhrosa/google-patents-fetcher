@@ -104,7 +104,7 @@ def parse_siblings(tag: Tag, current_node: Node) -> None:
 hack = set[int]()
 
 
-def property_value(tag: Tag) -> Any:
+def property_value(property_name: str, tag: Tag) -> Any:
     if tag.has_attr("itemscope"):
         child_node: Node = {}
         parse_children(tag, child_node)
@@ -115,6 +115,10 @@ def property_value(tag: Tag) -> Any:
         return href
     if src := tag.get("src"):
         return src
+    if property_name == "content":
+        # Sections such as "abstract" and "description" have nested tags
+        # describing the content
+        return tag.get_text(strip=True)
     text = tag.string
     if not isinstance(text, str):
         logger.warning(f"Skipping tag with no .string: {tag=}")
@@ -144,7 +148,10 @@ def parse_tag(tag: Tag, current_node: Node) -> None:  # noqa: C901
         return
     assert isinstance(property_name, str)
 
-    value = property_value(tag)
+    # if parse_special_section(property_name, tag):
+    #     return
+
+    value = property_value(property_name, tag)
 
     if tag.has_attr("repeat"):
         if property_name not in current_node:
@@ -156,6 +163,17 @@ def parse_tag(tag: Tag, current_node: Node) -> None:  # noqa: C901
             raise e
     else:
         current_node[property_name] = value
+
+
+# def parse_special_section(property_name: str, tag: Tag) -> bool:
+#     """Returns true if this tag was handled by this handler."""
+#     if tag.name != "section":
+#         return False
+#     if property_name == "abstract":
+
+#     return False
+
+# def parse_abstract(tag: Tag) -> FieldIterator:
 
 
 # def parse_publication_number(body: Tag) -> FieldIterator:
