@@ -135,6 +135,9 @@ def parse_tag(tag: Tag, current_node: Node) -> None:  # noqa: C901
     elif content := tag.get("content"):
         assert isinstance(content, str)
         value = content
+    elif href := tag.get("href"):
+        assert isinstance(href, str)
+        value = href
     else:
         text = tag.string
         if not isinstance(text, str):
