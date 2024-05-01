@@ -24,6 +24,16 @@ def has_class(tag: Tag, class_name: str) -> bool:
     return class_name in classes
 
 
+def hyphenated_to_camel(hyphenated: str) -> str:
+    """Convert hyphenated-string to camelCased string."""
+    parts = list[str]()
+    for i, part in enumerate(hyphenated.split("-")):
+        if i != 0:
+            part = part.capitalize()
+        parts.append(part)
+    return "".join(parts)
+
+
 def parse_html(html: str) -> Node:
     """Parse HTML string"""
     soup = BeautifulSoup(html, features="html.parser")
@@ -127,11 +137,11 @@ def property_value(tag: Tag) -> Any:
     return text.strip()
 
 
-def attrs_except_class(tag: Tag) -> FieldIterator:
-    """All HTML attributes of a tag except for 'class'"""
+def attrs_to_fields(tag: Tag) -> FieldIterator:
+    """Convert all HTML attributes of a tag into fields except for 'class'."""
     for key, value in tag.attrs.items():
         if key != "class":
-            yield key, value
+            yield hyphenated_to_camel(key), value
 
 
 def parse_label(tag: Tag) -> str:
@@ -220,7 +230,7 @@ def parse_abstract(section: Tag) -> FieldIterator:
     abstract = section.find("abstract")
     assert isinstance(abstract, Tag)
 
-    yield from attrs_except_class(abstract)
+    yield from attrs_to_fields(abstract)
     yield "content", abstract.get_text(strip=True)
 
 
@@ -229,10 +239,7 @@ def parse_description(section: Tag) -> FieldIterator:
     description = section.find(attrs={"class": "description"})
     assert isinstance(description, Tag)
 
-    for key, value in description.attrs.items():
-        if key == "class":
-            continue
-        yield key, value
+    yield from attrs_to_fields(description)
 
     def is_target(tag: Tag) -> bool:
         return tag.name == "heading" or has_class(tag, "description-line")
@@ -263,11 +270,8 @@ def parse_claims(section: Tag) -> FieldIterator:
     """Parse claims section"""
     claims_tag = section.find(lambda tag: has_class(tag, "claims"))
     assert isinstance(claims_tag, Tag)
-    for key, value in claims_tag.attrs.items():
-        if key == "class":
-            continue
-        yield key, value
-        # logger.debug(list(claims.stripped_strings))
+
+    yield from attrs_to_fields(claims_tag)
 
     parsed_claims = list[Node]()
     for claim in find_claims(claims_tag):
@@ -298,7 +302,7 @@ def find_claims(claims_tag: Tag) -> Iterator[Tag]:
 
 def parse_claim(claim: Tag) -> FieldIterator:
     """Parse a single claim"""
-    yield from attrs_except_class(claim)
+    yield from attrs_to_fields(claim)
     yield "text", claim.get_text(strip=True)
 
 
