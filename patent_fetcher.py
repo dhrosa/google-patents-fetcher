@@ -104,11 +104,29 @@ def parse_siblings(tag: Tag, current_node: Node) -> None:
 hack = set[int]()
 
 
+def property_value(tag: Tag) -> Any:
+    if tag.has_attr("itemscope"):
+        child_node: Node = {}
+        parse_children(tag, child_node)
+        return child_node
+    if content := tag.get("content"):
+        return content
+    if href := tag.get("href"):
+        return href
+    if src := tag.get("src"):
+        return src
+    text = tag.string
+    if not isinstance(text, str):
+        logger.warning(f"Skipping tag with no .string: {tag=}")
+        return None
+    return text.strip()
+
+
 def parse_tag(tag: Tag, current_node: Node) -> None:  # noqa: C901
     if id(tag) in hack:
         return
     hack.add(id(tag))
-    logger.debug(f"{tag.name=} {tag.attrs=} {tag.sourceline=}")
+    # logger.debug(f"{tag.name=} {tag.attrs=} {tag.sourceline=}")
     child_node: Node
     if tag.name in START_TAGS:
         label = parse_label(tag)
@@ -126,24 +144,7 @@ def parse_tag(tag: Tag, current_node: Node) -> None:  # noqa: C901
         return
     assert isinstance(property_name, str)
 
-    value: Any
-
-    if tag.has_attr("itemscope"):
-        child_node = {}
-        parse_children(tag, child_node)
-        value = child_node
-    elif content := tag.get("content"):
-        assert isinstance(content, str)
-        value = content
-    elif href := tag.get("href"):
-        assert isinstance(href, str)
-        value = href
-    else:
-        text = tag.string
-        if not isinstance(text, str):
-            logger.warning(f"Skipping tag with no .string: {tag=}")
-            return
-        value = text.strip()
+    value = property_value(tag)
 
     if tag.has_attr("repeat"):
         if property_name not in current_node:
