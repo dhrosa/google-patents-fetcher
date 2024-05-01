@@ -58,6 +58,7 @@ def parse(html: str) -> dict[str, Any]:
 
     data = dict[str, Any]()
     parse_tag(article, data)
+    parse_sections(article, data)
     return data
 
 
@@ -148,6 +149,10 @@ def parse_tag(tag: Tag, current_node: Node) -> None:  # noqa: C901
         return
     assert isinstance(property_name, str)
 
+    if tag.name == "section":
+        # Will be handled by parse_sectoins() later
+        return
+
     # if parse_special_section(property_name, tag):
     #     return
 
@@ -165,15 +170,29 @@ def parse_tag(tag: Tag, current_node: Node) -> None:  # noqa: C901
         current_node[property_name] = value
 
 
-# def parse_special_section(property_name: str, tag: Tag) -> bool:
-#     """Returns true if this tag was handled by this handler."""
-#     if tag.name != "section":
-#         return False
-#     if property_name == "abstract":
+def parse_sections(article: Tag, current_node: Node) -> None:
+    def is_section(tag: Tag) -> bool:
+        return tag.name == "section" and tag.has_attr("itemscope")
 
-#     return False
+    for section in article.find_all(is_section):
+        property_name = section["itemprop"]
+        assert isinstance(property_name, str)
+        value: Any
+        match property_name:
+            case "abstract":
+                value = dict(parse_abstract(section))
+            case _:
+                logger.warning(f"Unhandled section: {section.attrs=}")
+                value = None
+        current_node[property_name] = value
 
-# def parse_abstract(tag: Tag) -> FieldIterator:
+
+def parse_abstract(section: Tag) -> FieldIterator:
+    abstract = section.find("abstract")
+    assert isinstance(abstract, Tag)
+
+    yield from abstract.attrs.items()
+    yield "content", abstract.get_text(strip=True)
 
 
 # def parse_publication_number(body: Tag) -> FieldIterator:
