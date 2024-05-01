@@ -183,6 +183,8 @@ def parse_sections(article: Tag, current_node: Node) -> None:
                 value = dict(parse_abstract(section))
             case "description":
                 value = dict(parse_description(section))
+            case "claims":
+                value = dict(parse_claims(section))
             case _:
                 logger.warning(f"Unhandled section: {section.attrs=}")
                 value = None
@@ -222,7 +224,6 @@ def parse_description(section: Tag) -> FieldIterator:
 
     for tag in description.find_all(is_target):
         assert isinstance(tag, Tag)
-        logger.debug(tag_string(tag))
 
         text = tag.get_text(strip=True)
         if tag.name == "heading":
@@ -235,6 +236,54 @@ def parse_description(section: Tag) -> FieldIterator:
     parts.append(current_part)
 
     yield "parts", parts
+
+
+def has_class(tag: Tag, class_name: str) -> bool:
+    classes = tag.get("class") or []
+    return class_name in classes
+
+
+def parse_claims(section: Tag) -> FieldIterator:
+    claims_tag = section.find(lambda tag: has_class(tag, "claims"))
+    assert isinstance(claims_tag, Tag)
+    for key, value in claims_tag.attrs.items():
+        if key == "class":
+            continue
+        yield key, value
+        # logger.debug(list(claims.stripped_strings))
+
+    parsed_claims = list[Node]()
+    for claim in find_claims(claims_tag):
+        assert isinstance(claim, Tag)
+        parsed_claims.append(dict(parse_claim(claim)))
+
+    yield "claims", parsed_claims
+
+
+def attrs_except_class(tag: Tag) -> FieldIterator:
+    for key, value in tag.attrs.items():
+        if key != "class":
+            yield key, value
+
+
+def find_claims(claims_tag: Tag) -> Iterator[Tag]:
+    # Different patent pages have different nesting structure for tags with the
+    # class "claim". So to find the correct tags in a unified way, we find the
+    # tags with the class "claim-text", and return all unique ancestor tags with
+    # the class "claim".
+    seen_tags = set[int]()
+    for text_tag in claims_tag.find_all(lambda t: has_class(t, "claim-text")):
+        claim = text_tag.find_parent(lambda t: has_class(t, "claim"))
+        assert isinstance(claim, Tag)
+
+        if id(claim) not in seen_tags:
+            yield claim
+        seen_tags.add(id(claim))
+
+
+def parse_claim(claim: Tag) -> FieldIterator:
+    yield from attrs_except_class(claim)
+    yield "text", claim.get_text(strip=True)
 
 
 # def parse_publication_number(body: Tag) -> FieldIterator:
