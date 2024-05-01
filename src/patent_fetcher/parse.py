@@ -35,8 +35,20 @@ def parse_html(html: str) -> Node:
 
     data = dict[str, Any]()
     parse_properties(article, data)
+
     hack.clear()
-    parse_sections(article, data)
+    # Special sections get incorrectly nested under the "links" property. Remove
+    # these properties to move them to the proper location, and also to
+    # specialize their handling.
+    #
+    # TODO(dhrosa): Figure out how to avoid these nesting under "links". Perhaps
+    # pre-process the HTML to nest the special sections under a new synthethic
+    # property.
+    links = data["links"]
+    for name in SPECIAL_SECTION_NAMES:
+        assert name in links
+        del links[name]
+    parse_special_sections(article, data)
     return data
 
 
@@ -73,13 +85,6 @@ def parse_properties(tag: Tag, current_node: Node) -> None:  # noqa: C901
         parse_children_properties(tag, current_node)
         return
     assert isinstance(property_name, str)
-
-    if is_special_section(tag):
-        logger.debug(
-            f"parse_properties() skipping tag for special handling later: {tag_string(tag)}"
-        )
-        # Will be handled by parse_sections() later
-        return
 
     value = property_value(tag)
 
@@ -166,12 +171,26 @@ def parse_siblings_properties(tag: Tag, current_node: Node) -> None:
         parse_properties(sibling, current_node)
 
 
+SPECIAL_SECTION_NAMES = (
+    "abstract",
+    "description",
+    "claims",
+    "application",
+    "family",
+)
+"""itemprop value of <section> tags that need specialized handling."""
+
+
 def is_special_section(tag: Tag) -> bool:
     """True if this is a <section> tag that needs specialized handling."""
-    return tag.name == "section" and tag.has_attr("itemscope")
+    return (
+        tag.name == "section"
+        and tag.has_attr("itemscope")
+        and (tag.get("itemprop") in SPECIAL_SECTION_NAMES)
+    )
 
 
-def parse_sections(article: Tag, current_node: Node) -> None:
+def parse_special_sections(article: Tag, current_node: Node) -> None:
     """Parse section tags that are also properties.
 
     These tags have special structure that is not represented as properties."""
@@ -188,6 +207,8 @@ def parse_sections(article: Tag, current_node: Node) -> None:
                 value = dict(parse_claims(section))
             case "application":
                 value = dict(parse_application(section))
+            case "family":
+                value = dict(parse_family(section))
             case _:
                 logger.warning(f"Unhandled section: {section.attrs=}")
                 value = None
@@ -277,14 +298,27 @@ def find_claims(claims_tag: Tag) -> Iterator[Tag]:
 
 
 def parse_claim(claim: Tag) -> FieldIterator:
-    """ "Parse a single claim"""
+    """Parse a single claim"""
     yield from attrs_except_class(claim)
     yield "text", claim.get_text(strip=True)
 
 
 def parse_application(application: Tag) -> FieldIterator:
+    """Parse application section."""
     node: Node = {}
     for child in application.children:
+        if not isinstance(child, Tag):
+            continue
+        parse_properties(child, node)
+    yield from node.items()
+
+
+def parse_family(family: Tag) -> FieldIterator:
+    """Parse family section."""
+    # TODO(dhrosa): The family section has the family ID in a <h2> tag at the
+    # top. This becomes a bogus property in our output.
+    node: Node = {}
+    for child in family.children:
         if not isinstance(child, Tag):
             continue
         parse_properties(child, node)
