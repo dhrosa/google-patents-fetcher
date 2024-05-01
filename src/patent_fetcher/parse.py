@@ -35,6 +35,7 @@ def parse_html(html: str) -> Node:
 
     data = dict[str, Any]()
     parse_properties(article, data)
+    hack.clear()
     parse_sections(article, data)
     return data
 
@@ -73,7 +74,10 @@ def parse_properties(tag: Tag, current_node: Node) -> None:  # noqa: C901
         return
     assert isinstance(property_name, str)
 
-    if tag.name == "section":
+    if is_special_section(tag):
+        logger.debug(
+            f"parse_properties() skipping tag for special handling later: {tag_string(tag)}"
+        )
         # Will be handled by parse_sections() later
         return
 
@@ -162,15 +166,16 @@ def parse_siblings_properties(tag: Tag, current_node: Node) -> None:
         parse_properties(sibling, current_node)
 
 
+def is_special_section(tag: Tag) -> bool:
+    """True if this is a <section> tag that needs specialized handling."""
+    return tag.name == "section" and tag.has_attr("itemscope")
+
+
 def parse_sections(article: Tag, current_node: Node) -> None:
     """Parse section tags that are also properties.
 
     These tags have special structure that is not represented as properties."""
-
-    def is_section(tag: Tag) -> bool:
-        return tag.name == "section" and tag.has_attr("itemscope")
-
-    for section in article.find_all(is_section):
+    for section in article.find_all(is_special_section):
         property_name = section["itemprop"]
         assert isinstance(property_name, str)
         value: Any
@@ -181,6 +186,8 @@ def parse_sections(article: Tag, current_node: Node) -> None:
                 value = dict(parse_description(section))
             case "claims":
                 value = dict(parse_claims(section))
+            case "application":
+                value = dict(parse_application(section))
             case _:
                 logger.warning(f"Unhandled section: {section.attrs=}")
                 value = None
@@ -273,3 +280,12 @@ def parse_claim(claim: Tag) -> FieldIterator:
     """ "Parse a single claim"""
     yield from attrs_except_class(claim)
     yield "text", claim.get_text(strip=True)
+
+
+def parse_application(application: Tag) -> FieldIterator:
+    node: Node = {}
+    for child in application.children:
+        if not isinstance(child, Tag):
+            continue
+        parse_properties(child, node)
+    yield from node.items()
