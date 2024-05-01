@@ -315,8 +315,14 @@ def parse_application(application: Tag) -> FieldIterator:
 
 def parse_family(family: Tag) -> FieldIterator:
     """Parse family section."""
-    # TODO(dhrosa): The family section has the family ID in a <h2> tag at the
-    # top. This becomes a bogus property in our output.
+    # The ID of the family is contained in its first h2 tag.
+    id_tag = family.find("h2")
+    assert isinstance(id_tag, Tag)
+    yield "id", id_tag.get_text(strip=True).split("=")[-1]
+
+    content_start = id_tag.find_next_sibling("h2")
+    assert isinstance(content_start, Tag)
+
     node: Node = {}
-    parse_children_properties(family, node)
+    parse_properties(content_start, node)
     yield from node.items()
