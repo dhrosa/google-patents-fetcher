@@ -13,20 +13,20 @@ dependencies = [
 ]
 
 [project.scripts]
-patent_fetcher = "patent_fetcher:main"
+patent_fetcher = "patent_fetcher.main:main"
 
 [tool.hatch.envs.style]
 dependencies = ["isort", "black", "pylama", "mypy", "types-beautifulsoup4"]
 
 [tool.hatch.envs.style.scripts]
 format = [
-       "isort --color .",
-       "black .",
+       "isort --color src",
+       "black src",
 ]
 
 check = [
-      "pylama --ignore E203 .", # E203 is not pep8-compliant, and black breaks it
-      "mypy --strict --pretty .",
+      "pylama --ignore E203 src", # E203 is not pep8-compliant, and black breaks it
+      "mypy --strict --pretty src",
 ] 
 all = [
     "format",
