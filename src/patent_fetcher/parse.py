@@ -220,7 +220,7 @@ def parse_abstract(section: Tag) -> FieldIterator:
     abstract = section.find("abstract")
     assert isinstance(abstract, Tag)
 
-    yield from abstract.attrs.items()
+    yield from attrs_except_class(abstract)
     yield "content", abstract.get_text(strip=True)
 
 
@@ -235,8 +235,7 @@ def parse_description(section: Tag) -> FieldIterator:
         yield key, value
 
     def is_target(tag: Tag) -> bool:
-        classes = tag.get("class") or []
-        return tag.name == "heading" or "description-line" in classes
+        return tag.name == "heading" or has_class(tag, "description-line")
 
     def new_part(heading: str) -> Node:
         return {"heading": heading, "lines": []}
@@ -306,10 +305,7 @@ def parse_claim(claim: Tag) -> FieldIterator:
 def parse_application(application: Tag) -> FieldIterator:
     """Parse application section."""
     node: Node = {}
-    for child in application.children:
-        if not isinstance(child, Tag):
-            continue
-        parse_properties(child, node)
+    parse_children_properties(application, node)
     yield from node.items()
 
 
@@ -318,8 +314,5 @@ def parse_family(family: Tag) -> FieldIterator:
     # TODO(dhrosa): The family section has the family ID in a <h2> tag at the
     # top. This becomes a bogus property in our output.
     node: Node = {}
-    for child in family.children:
-        if not isinstance(child, Tag):
-            continue
-        parse_properties(child, node)
+    parse_children_properties(family, node)
     yield from node.items()
