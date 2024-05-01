@@ -181,10 +181,16 @@ def parse_sections(article: Tag, current_node: Node) -> None:
         match property_name:
             case "abstract":
                 value = dict(parse_abstract(section))
+            case "description":
+                value = dict(parse_description(section))
             case _:
                 logger.warning(f"Unhandled section: {section.attrs=}")
                 value = None
         current_node[property_name] = value
+
+
+def tag_string(tag: Tag) -> str:
+    return f"{tag.name=} {tag.attrs=} {tag.sourceline=}"
 
 
 def parse_abstract(section: Tag) -> FieldIterator:
@@ -193,6 +199,42 @@ def parse_abstract(section: Tag) -> FieldIterator:
 
     yield from abstract.attrs.items()
     yield "content", abstract.get_text(strip=True)
+
+
+def parse_description(section: Tag) -> FieldIterator:
+    description = section.find(attrs={"class": "description"})
+    assert isinstance(description, Tag)
+
+    for key, value in description.attrs.items():
+        if key == "class":
+            continue
+        yield key, value
+
+    def is_target(tag: Tag) -> bool:
+        classes = tag.get("class") or []
+        return tag.name == "heading" or "description-line" in classes
+
+    def new_part(heading: str) -> Node:
+        return {"heading": heading, "lines": []}
+
+    parts = list[Node]()
+    current_part = new_part(heading="")
+
+    for tag in description.find_all(is_target):
+        assert isinstance(tag, Tag)
+        logger.debug(tag_string(tag))
+
+        text = tag.get_text(strip=True)
+        if tag.name == "heading":
+            parts.append(current_part)
+            current_part = new_part(heading=text)
+            continue
+
+        current_part["lines"].append({"num": tag.get("num"), "text": text})
+
+    parts.append(current_part)
+
+    yield "parts", parts
 
 
 # def parse_publication_number(body: Tag) -> FieldIterator:
