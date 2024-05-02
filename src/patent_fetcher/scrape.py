@@ -40,4 +40,5 @@ def scrape(patent_id: str) -> list[Node]:
         html = fetch_html(url)
         parsed.append({"language": language, "data": parse_html(html)})
 
+    logger.info("Scrape completed.")
     return parsed

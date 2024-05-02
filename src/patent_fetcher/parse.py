@@ -80,11 +80,9 @@ def parse_properties(tag: Tag, current_node: Node) -> None:  # noqa: C901
     if tag.name in START_TAGS:
         # New label found; begin a new nested node
         label = parse_label(tag)
-        logger.debug(f"starting new property: {label}")
         child_node = {}
         parse_siblings_properties(tag, child_node)
         current_node[label] = child_node
-        logger.debug(f"ending new property: {label}")
         return
 
     property_name = tag.get("itemprop")
@@ -234,8 +232,9 @@ def parse_abstract(section: Tag) -> FieldIterator:
 
 def parse_description(section: Tag) -> FieldIterator:
     """Parse description section"""
+    # TODO: Some pages use tags such as <tech-problem> or <advantageous-effects>
+    # to delineate new headings.
 
-    # Different patents use different styles of parent tag.
     def is_description(tag: Tag) -> bool:
         return has_class(tag, "description") or (tag.name == "description")
 
@@ -245,7 +244,7 @@ def parse_description(section: Tag) -> FieldIterator:
     yield from attrs_to_fields(description)
 
     def is_target(tag: Tag) -> bool:
-        return tag.name == "heading" or has_class(tag, "description-line")
+        return tag.name == "heading" or tag.has_attr("num")
 
     def new_part(heading: str) -> Node:
         return {"heading": heading, "lines": []}
