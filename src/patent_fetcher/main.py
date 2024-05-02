@@ -7,8 +7,7 @@ from bs4 import Tag
 from rich import traceback
 from rich.logging import RichHandler
 
-from .fetch import fetch_html
-from .parse import parse_html
+from .scrape import scrape
 
 
 def main() -> None:
@@ -33,27 +32,14 @@ def main() -> None:
         description="Fetch JSON-encoded information about a patent."
     )
     parser.add_argument(
-        "id_or_url",
+        "id",
         type=str,
-        help=(
-            "The Google Patent ID to fetch data for. "
-            "If a URL is specified instead, then we fetch data from that URL "
-            "instead of forming the URLs automatically. "
-            "This is useful for debugging (e.g. fetching from a local file:// URL)."
-        ),
+        help=("The Google Patent ID to fetch data for. "),
     )
-
     args = parser.parse_args()
 
-    url: str
-    if "/" in args.id_or_url:
-        url = args.id_or_url
-    else:
-        patent_id = args.id_or_url
-        url = f"https://patents.google.com/patent/{patent_id}"
-
-    parsed = parse_html(fetch_html(url))
-    print(json.dumps(parsed, indent=2))
+    scraped = scrape(args.id)
+    print(json.dumps(scraped, indent=2))
 
 
 if __name__ == "__main__":
