@@ -272,7 +272,7 @@ def parse_claims(section: Tag) -> FieldIterator:
     """Parse claims section"""
 
     def is_claims(tag: Tag) -> bool:
-        return has_class(tag, "claims") or tag.name == "claim"
+        return has_class(tag, "claims") or tag.name == "claims"
 
     claims_tag = section.find(is_claims)
     assert isinstance(claims_tag, Tag)
@@ -280,48 +280,21 @@ def parse_claims(section: Tag) -> FieldIterator:
     yield from attrs_to_fields(claims_tag)
 
     parsed_claims = list[Node]()
-    for claim in find_claims(claims_tag):
+
+    def is_claim(tag: Tag) -> bool:
+        return (has_class(tag, "claim") or tag.name == "claim") and tag.has_attr("num")
+
+    for claim in claims_tag.find_all(is_claim):
         assert isinstance(claim, Tag)
         parsed_claims.append(dict(parse_claim(claim)))
 
     yield "claims", parsed_claims
 
 
-def find_claims(claims_tag: Tag) -> Iterator[Tag]:
-    """Finds all 'claim' tags nested under the given 'claims' tag.
-
-    Different patent pages have a different nesting structure of 'claim' tags,
-    but only one level of them has the relevant properties. So to find the
-    correct tags in a unified way, we find the tags with the class "claim-text",
-    and return all unique ancestor tags with the class "claim".
-
-    """
-    # TODO(dhrosa): We can instead search for num attr and class="claim"
-    seen_tags = set[int]()
-    for text_tag in claims_tag.find_all(lambda t: has_class(t, "claim-text")):
-        claim = text_tag.find_parent(lambda t: has_class(t, "claim"))
-        assert isinstance(claim, Tag)
-
-        if id(claim) not in seen_tags:
-            yield claim
-        seen_tags.add(id(claim))
-
-
 def parse_claim(claim: Tag) -> FieldIterator:
     """Parse a single claim"""
     yield from attrs_to_fields(claim)
-    yield "text", list(get_claim_text(claim))
-
-
-def get_claim_text(tag: Tag) -> Iterator[str]:
-    """Generates all descendant strings in a tag recursively.
-
-    We walk the DOM and extract all NavigableStrings we find, and recurse on Tags."""
-    for child in tag.children:
-        if isinstance(child, Tag):
-            yield from get_claim_text(child)
-        else:
-            yield from child.stripped_strings
+    yield "text", list(claim.stripped_strings)
 
 
 def parse_application(application: Tag) -> FieldIterator:
