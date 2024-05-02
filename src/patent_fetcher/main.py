@@ -3,6 +3,7 @@ import logging
 from argparse import ArgumentParser
 
 import rich
+from rich import traceback
 from rich.logging import RichHandler
 
 from .fetch import fetch_html
@@ -12,6 +13,7 @@ from .parse import parse_html
 def main() -> None:
     rich.reconfigure(stderr=True)
     log_handler = RichHandler(rich_tracebacks=True)
+    traceback.install()
     file_handler = logging.FileHandler("log.txt", mode="w")
     logging.basicConfig(
         level="NOTSET",

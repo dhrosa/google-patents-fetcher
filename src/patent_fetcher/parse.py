@@ -37,13 +37,11 @@ def hyphenated_to_camel(hyphenated: str) -> str:
 def parse_html(html: str) -> Node:
     """Parse HTML string"""
     soup = BeautifulSoup(html, features="html.parser")
-    root = soup.html
-    assert root
+    article = soup.find("article")
+    if not isinstance(article, Tag):
+        raise ValueError("Could not find <article> tag. Maybe the URL is wrong?")
 
-    article = root.find("article")
-    assert isinstance(article, Tag)
-
-    data = dict[str, Any]()
+    data: Node = {}
     parse_properties(article, data)
 
     hack.clear()
