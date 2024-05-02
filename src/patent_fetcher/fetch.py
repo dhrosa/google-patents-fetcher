@@ -1,7 +1,11 @@
 import json
+import time
+from logging import getLogger
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+
+logger = getLogger(__name__)
 
 
 def fetch_html(url: str) -> str:
@@ -28,6 +32,18 @@ def fetch_html(url: str) -> str:
 
     driver = webdriver.Chrome(options=options)
     driver.get(f"view-source:{url}")
+
+    # Wait for page to finish loading
+    timeout = 5.0
+    start_time = time.time()
+    while driver.execute_script("return document.readyState") != "complete":  # type: ignore
+        elapsed = time.time() - start_time
+        if elapsed >= timeout:
+            raise TimeoutError(f"Page did not load within {timeout} seconds.")
+        logger.debug(f"Waiting for page to load, elapsed time: {elapsed}")
+        time.sleep(0.25)
+    logger.info("Page load complete.")
+
     request_id = ""
     # Find message containing the full response, which happens in the
     # loadingFinished event. We use that message to lookup the request ID for
@@ -55,4 +71,5 @@ def fetch_html(url: str) -> str:
 
     body = response["body"]
     assert isinstance(body, str)
+
     return body
