@@ -1,3 +1,4 @@
 log.txt
 out.json
 *#*
+*__pycache__*

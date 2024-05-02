@@ -303,7 +303,18 @@ def find_claims(claims_tag: Tag) -> Iterator[Tag]:
 def parse_claim(claim: Tag) -> FieldIterator:
     """Parse a single claim"""
     yield from attrs_to_fields(claim)
-    yield "text", claim.get_text(strip=True)
+    yield "text", list(get_claim_text(claim))
+
+
+def get_claim_text(tag: Tag) -> Iterator[str]:
+    """Generates all descendant strings in a tag recursively.
+
+    We walk the DOM and extract all NavigableStrings we find, and recurse on Tags."""
+    for child in tag.children:
+        if isinstance(child, Tag):
+            yield from get_claim_text(child)
+        else:
+            yield from child.stripped_strings
 
 
 def parse_application(application: Tag) -> FieldIterator:
