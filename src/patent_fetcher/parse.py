@@ -234,7 +234,12 @@ def parse_abstract(section: Tag) -> FieldIterator:
 
 def parse_description(section: Tag) -> FieldIterator:
     """Parse description section"""
-    description = section.find(attrs={"class": "description"})
+
+    # Different patents use different styles of parent tag.
+    def is_description(tag: Tag) -> bool:
+        return has_class(tag, "description") or (tag.name == "description")
+
+    description = section.find(is_description)
     assert isinstance(description, Tag)
 
     yield from attrs_to_fields(description)
@@ -266,7 +271,11 @@ def parse_description(section: Tag) -> FieldIterator:
 
 def parse_claims(section: Tag) -> FieldIterator:
     """Parse claims section"""
-    claims_tag = section.find(lambda tag: has_class(tag, "claims"))
+
+    def is_claims(tag: Tag) -> bool:
+        return has_class(tag, "claims") or tag.name == "claim"
+
+    claims_tag = section.find(is_claims)
     assert isinstance(claims_tag, Tag)
 
     yield from attrs_to_fields(claims_tag)
@@ -288,6 +297,7 @@ def find_claims(claims_tag: Tag) -> Iterator[Tag]:
     and return all unique ancestor tags with the class "claim".
 
     """
+    # TODO(dhrosa): We can instead search for num attr and class="claim"
     seen_tags = set[int]()
     for text_tag in claims_tag.find_all(lambda t: has_class(t, "claim-text")):
         claim = text_tag.find_parent(lambda t: has_class(t, "claim"))
