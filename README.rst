@@ -24,3 +24,9 @@ Once installed, run the command using something like the following:
 .. code:: shell
 
    patent_fetcher KR101863193B1 > out.json
+
+Or the following if pip-installed packages are not in your ``PATH``:
+
+.. code:: shell
+
+   python3 -m patent_fetcher.main KR101863193B1 > out.json
