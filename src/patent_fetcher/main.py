@@ -3,6 +3,7 @@ import logging
 from argparse import ArgumentParser
 
 import rich
+from bs4 import Tag
 from rich import traceback
 from rich.logging import RichHandler
 
@@ -13,7 +14,11 @@ from .parse import parse_html
 def main() -> None:
     rich.reconfigure(stderr=True)
     log_handler = RichHandler(rich_tracebacks=True)
-    traceback.install()
+    traceback.install(show_locals=True)
+    # Monkeypatch BS4 Tag to not take huge amounts of screen space in
+    # rich tracebacks.
+    setattr(Tag, "__repr__", lambda s: str(type(s)))
+
     file_handler = logging.FileHandler("log.txt", mode="w")
     logging.basicConfig(
         level="NOTSET",
