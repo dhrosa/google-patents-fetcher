@@ -26,7 +26,7 @@ def scrape(patent_id: str) -> list[Node]:
     # Figure out what translations are available. Single-language patents won't
     # have an 'otherLanguages' attribute.
     other_languages = list[str]()
-    for other in original.get("otherLanguages", {})["otherLanguages"]:
+    for other in original.get("otherLanguages", {}).get("otherLanguages", []):
         other_languages.append(other["code"])
 
     logger.info(f"Other languages available: {other_languages}")
