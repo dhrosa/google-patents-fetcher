@@ -1,8 +1,9 @@
 from collections.abc import Iterator
+from dataclasses import asdict, dataclass
 from logging import getLogger
 from typing import Any, TypeAlias
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 Field: TypeAlias = tuple[str, Any]
 FieldIterator: TypeAlias = Iterator[Field]
@@ -232,8 +233,6 @@ def parse_abstract(section: Tag) -> FieldIterator:
 
 def parse_description(section: Tag) -> FieldIterator:
     """Parse description section"""
-    # TODO: Some pages use tags such as <tech-problem> or <advantageous-effects>
-    # to delineate new headings.
 
     def is_description(tag: Tag) -> bool:
         return has_class(tag, "description") or (tag.name == "description")
@@ -243,29 +242,65 @@ def parse_description(section: Tag) -> FieldIterator:
 
     yield from attrs_to_fields(description)
 
-    def is_target(tag: Tag) -> bool:
-        return tag.name == "heading" or tag.has_attr("num")
+    yield "parts", [asdict(p) for p in parse_description_parts(description)]
 
-    def new_part(heading: str) -> Node:
-        return {"heading": heading, "lines": []}
 
-    parts = list[Node]()
-    current_part = new_part(heading="")
+def descendant_navigable_strings(tag: Tag) -> Iterator[NavigableString]:
+    """Iterates through NavigableString descendants of the given tag."""
+    for d in tag.descendants:
+        if isinstance(d, NavigableString):
+            yield d
 
-    for tag in description.find_all(is_target):
-        assert isinstance(tag, Tag)
 
-        text = tag.get_text(strip=True)
-        if tag.name == "heading":
-            parts.append(current_part)
-            current_part = new_part(heading=text)
+@dataclass
+class DescriptionLine:
+    """A single line of a patent description."""
+
+    num: str
+    text: str
+
+
+@dataclass
+class DescriptionPart:
+    """A collection of description lines that are under the same heading."""
+
+    heading: str
+    lines: list[DescriptionLine]
+
+
+def parse_description_parts(description: Tag) -> Iterator[DescriptionPart]:
+    """Parse individual text elements inside the description section."""
+
+    def get_line_num(s: NavigableString) -> str | None:
+        """Fetches the "num" attribute of the nearest ancestor."""
+        for parent in s.parents:
+            if num := parent.get("num"):
+                assert isinstance(num, str)
+                return num
+        return None
+
+    current_part: DescriptionPart | None = None
+
+    for d in descendant_navigable_strings(description):
+        text = str(d).strip()
+        if not text:
             continue
+        if num := get_line_num(d):
+            # This is a line for the current heading
+            if not current_part:
+                logger.warning(
+                    f"Description line without an associated heading: {num=} {text=}"
+                )
+                current_part = DescriptionPart("", [])
+            current_part.lines.append(DescriptionLine(num=num, text=text))
+        else:
+            # This begins a new heading
+            if current_part:
+                yield current_part
+            current_part = DescriptionPart(heading=text, lines=[])
 
-        current_part["lines"].append({"num": tag.get("num"), "text": text})
-
-    parts.append(current_part)
-
-    yield "parts", parts
+    if current_part:
+        yield current_part
 
 
 def parse_claims(section: Tag) -> FieldIterator:
