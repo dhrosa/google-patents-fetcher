@@ -113,13 +113,13 @@ def property_value(tag: Tag) -> Any:
         child_node: Node = {}
         parse_children_properties(tag, child_node)
         return child_node
-    if content := tag.get("content"):
+    if (content := tag.get("content")) is not None:
         # <meta> tags
         return content
-    if href := tag.get("href"):
+    if (href := tag.get("href")) is not None:
         # <a> tags
         return href
-    if src := tag.get("src"):
+    if (src := tag.get("src")) is not None:
         # <img> tags
         return src
     # Otherwise, the text within the node is considered the value
