@@ -57,6 +57,10 @@ def parse_html(html: str) -> Node:
         assert name in links
         del links[name]
     parse_special_sections(article, data)
+
+    data["info"]["publicationNumber"]["values"] = list(
+        parse_publication_numbers(article)
+    )
     return data
 
 
@@ -175,6 +179,24 @@ def parse_siblings_properties(tag: Tag, current_node: Node) -> None:
         if sibling.name in START_TAGS:
             return
         parse_properties(sibling, current_node)
+
+
+def parse_publication_numbers(article: Tag) -> Iterator[str]:
+    start = article.find(attrs={"itemprop": "publicationNumber"})
+    if not isinstance(start, Tag):
+        logger.warning("Could not find publication numbers.")
+        return
+
+    for sibling in start.next_siblings:
+        if not isinstance(sibling, Tag):
+            continue
+        if sibling.name in START_TAGS:
+            return
+        if sibling.name != "span":
+            continue
+        text = sibling.get_text(strip=True)
+        if text:
+            yield text
 
 
 SPECIAL_SECTION_NAMES = (
