@@ -1,5 +1,4 @@
 from collections.abc import Iterator
-from dataclasses import asdict, dataclass
 from logging import getLogger
 from typing import Any, TypeAlias
 
@@ -242,7 +241,7 @@ def parse_description(section: Tag) -> FieldIterator:
 
     yield from attrs_to_fields(description)
 
-    yield "parts", [asdict(p) for p in parse_description_parts(description)]
+    yield "lines", list(parse_description_lines(description))
 
 
 def descendant_navigable_strings(tag: Tag) -> Iterator[NavigableString]:
@@ -252,55 +251,22 @@ def descendant_navigable_strings(tag: Tag) -> Iterator[NavigableString]:
             yield d
 
 
-@dataclass
-class DescriptionLine:
-    """A single line of a patent description."""
-
-    num: str
-    text: str
-
-
-@dataclass
-class DescriptionPart:
-    """A collection of description lines that are under the same heading."""
-
-    heading: str
-    lines: list[DescriptionLine]
-
-
-def parse_description_parts(description: Tag) -> Iterator[DescriptionPart]:
+def parse_description_lines(description: Tag) -> Iterator[Node]:
     """Parse individual text elements inside the description section."""
 
-    def get_line_num(s: NavigableString) -> str | None:
+    def get_line_num(s: NavigableString) -> str:
         """Fetches the "num" attribute of the nearest ancestor."""
         for parent in s.parents:
             if num := parent.get("num"):
                 assert isinstance(num, str)
                 return num
-        return None
-
-    current_part: DescriptionPart | None = None
+        return ""
 
     for d in descendant_navigable_strings(description):
         text = str(d).strip()
         if not text:
             continue
-        if num := get_line_num(d):
-            # This is a line for the current heading
-            if not current_part:
-                logger.warning(
-                    f"Description line without an associated heading: {num=} {text=}"
-                )
-                current_part = DescriptionPart("", [])
-            current_part.lines.append(DescriptionLine(num=num, text=text))
-        else:
-            # This begins a new heading
-            if current_part:
-                yield current_part
-            current_part = DescriptionPart(heading=text, lines=[])
-
-    if current_part:
-        yield current_part
+        yield {"num": get_line_num(d), "text": text}
 
 
 def parse_claims(section: Tag) -> FieldIterator:
