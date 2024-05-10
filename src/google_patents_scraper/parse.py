@@ -246,7 +246,8 @@ def parse_special_sections(article: Tag, current_node: Node) -> None:
 def parse_abstract(section: Tag) -> FieldIterator:
     """Parse abstract section"""
     abstract = section.find("abstract")
-    assert isinstance(abstract, Tag)
+    if not isinstance(abstract, Tag):
+        return
 
     yield from attrs_to_fields(abstract)
     yield "text", abstract.get_text(strip=True)
@@ -259,7 +260,8 @@ def parse_description(section: Tag) -> FieldIterator:
         return has_class(tag, "description") or (tag.name == "description")
 
     description = section.find(is_description)
-    assert isinstance(description, Tag)
+    if not isinstance(description, Tag):
+        return
 
     yield from attrs_to_fields(description)
 
@@ -298,7 +300,8 @@ def parse_claims(section: Tag) -> FieldIterator:
         return has_class(tag, "claims") or tag.name == "claims"
 
     claims_tag = section.find(is_claims)
-    assert isinstance(claims_tag, Tag)
+    if not isinstance(claims_tag, Tag):
+        return
 
     yield from attrs_to_fields(claims_tag)
 
@@ -331,11 +334,13 @@ def parse_family(family: Tag) -> FieldIterator:
     """Parse family section."""
     # The ID of the family is contained in its first h2 tag.
     id_tag = family.find("h2")
-    assert isinstance(id_tag, Tag)
+    if not isinstance(id_tag, Tag):
+        return
     yield "id", id_tag.get_text(strip=True).split("=")[-1]
 
     content_start = id_tag.find_next_sibling("h2")
-    assert isinstance(content_start, Tag)
+    if not isinstance(content_start, Tag):
+        return
 
     node: Node = {}
     parse_properties(content_start, node)
