@@ -39,6 +39,9 @@ def main() -> None:
     args = parser.parse_args()
 
     scraped = scrape(args.id)
+    for translation in scraped:
+        # Remove raw HTML when outputting JSON
+        translation.pop("html")
     print(json.dumps(scraped, indent=2))
 
 

@@ -19,7 +19,8 @@ def scrape(patent_id: str) -> list[Node]:
     original_url = patent_url(patent_id, "")
     logger.info(f"Parsing patent in its original language: {original_url}")
     # Fetch patent HTML for the original language.
-    original = parse_html(fetch_html(original_url))
+    original_html = fetch_html(original_url)
+    original = parse_html(original_html)
     original_language = original["abstract"]["lang"].lower()
     logger.info(f"Original language is {original_language!r}")
 
@@ -32,13 +33,15 @@ def scrape(patent_id: str) -> list[Node]:
     logger.info(f"Other languages available: {other_languages}")
 
     parsed = list[Node]()
-    parsed.append({"language": original_language, "data": original})
+    parsed.append(
+        {"language": original_language, "data": original, "html": original_html}
+    )
 
     for language in other_languages:
         url = patent_url(patent_id, language)
         logger.info(f"Fetching {language!r} translation: {url}")
         html = fetch_html(url)
-        parsed.append({"language": language, "data": parse_html(html)})
+        parsed.append({"language": language, "data": parse_html(html), "html": html})
 
     logger.info("Scrape completed.")
     return parsed
