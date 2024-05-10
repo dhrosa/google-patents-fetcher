@@ -3,7 +3,7 @@ requires = ["hatchling", "hatch-fancy-pypi-readme"]
 build-backend = "hatchling.build"
 
 [project]
-name = "patent_fetcher"
+name = "google-patents-scraper"
 version = "0.0.0"
 
 dependencies = [
@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-patent_fetcher = "patent_fetcher.main:main"
+google-patents-scraper = "google_patents_scraper.main:main"
 
 [tool.hatch.envs.style]
 dependencies = ["isort", "black", "pylama", "mypy", "types-beautifulsoup4"]

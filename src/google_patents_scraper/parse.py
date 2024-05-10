@@ -54,7 +54,6 @@ def parse_html(html: str) -> Node:
     # property.
     links = data["links"]
     for name in SPECIAL_SECTION_NAMES:
-        assert name in links
         del links[name]
     parse_special_sections(article, data)
 
