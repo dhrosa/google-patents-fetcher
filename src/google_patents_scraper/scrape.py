@@ -21,7 +21,10 @@ def scrape(patent_id: str) -> list[Node]:
     # Fetch patent HTML for the original language.
     original_html = fetch_html(original_url)
     original = parse_html(original_html)
-    original_language = original["abstract"]["lang"].lower()
+    try:
+        original_language = original["abstract"]["lang"].lower()
+    except KeyError:
+        original_language = "<unknown>"
     logger.info(f"Original language is {original_language!r}")
 
     # Figure out what translations are available. Single-language patents won't
