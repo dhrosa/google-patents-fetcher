@@ -58,9 +58,7 @@ def parse_html(html: str) -> Node:
             del links[name]
     parse_special_sections(article, data)
 
-    data["info"]["publicationNumber"]["values"] = list(
-        parse_publication_numbers(article)
-    )
+    data["parsedPublicationNumbers"] = list(parse_publication_numbers(article))
     return data
 
 
