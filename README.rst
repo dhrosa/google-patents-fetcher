@@ -8,7 +8,7 @@ You can install this package directly from GitHub with the following:
 
 .. code:: shell
 
-   pip install git+https://github.com/dhrosa/patent_fetcher.git
+   pip install git+https://github.com/dhrosa/google-patent-fetcher.git
 
 If you have this repository downloaded locally, you can install it from its directory using:
 
