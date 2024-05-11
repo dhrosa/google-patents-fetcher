@@ -52,10 +52,10 @@ def parse_html(html: str) -> Node:
     # TODO(dhrosa): Figure out how to avoid these nesting under "links". Perhaps
     # pre-process the HTML to nest the special sections under a new synthethic
     # property.
-    links = data["links"]
-    for name in SPECIAL_SECTION_NAMES:
-        if name in links:
-            del links[name]
+    if links := data.get("links"):
+        for name in SPECIAL_SECTION_NAMES:
+            if name in links:
+                del links[name]
     parse_special_sections(article, data)
 
     data["parsedPublicationNumbers"] = list(parse_publication_numbers(article))
