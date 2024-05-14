@@ -36,6 +36,8 @@ def hyphenated_to_camel(hyphenated: str) -> str:
 
 def parse_html(html: str) -> Node:
     """Parse HTML string"""
+    hack.clear()
+
     soup = BeautifulSoup(html, features="html.parser")
     article = soup.find("article")
     if not isinstance(article, Tag):
